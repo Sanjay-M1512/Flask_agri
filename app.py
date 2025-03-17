@@ -95,6 +95,20 @@ def get_crop_recommendations(month):
     except Exception as e:
         return jsonify({"error": f"Failed to fetch crop recommendations: {str(e)}"}), 500
 
+# Get User Information by Mobile Number
+@app.route("/user/<string:mobile_number>", methods=["GET"])
+def get_user_info(mobile_number):
+    try:
+        user = mongo.db.users.find_one({"mobile_number": mobile_number.strip()}, {"_id": 0, "password": 0})
+        
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        return jsonify(user), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to fetch user information: {str(e)}"}), 500
+
+
 # Get Pesticide Recommendations by Disease
 @app.route("/pesticide_recommendations/<string:disease>", methods=["GET"])
 def get_pesticide_recommendations(disease):
