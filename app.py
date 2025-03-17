@@ -3,7 +3,6 @@ from flask_pymongo import PyMongo
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_cors import CORS
 from datetime import datetime
-from bson.objectid import ObjectId
 
 app = Flask(__name__)
 
@@ -79,7 +78,7 @@ def login():
     except Exception as e:
         return jsonify({"error": f"Login failed: {str(e)}"}), 500
 
-# Save Crop Recommendations in Farmer Logs
+# Save Crop Recommendations in Farmer Logs (Using `mobile_number` & `username`)
 @app.route("/farmer_logs", methods=["POST"])
 def save_farmer_logs():
     try:
@@ -87,14 +86,22 @@ def save_farmer_logs():
         if not data:
             return jsonify({"error": "No data provided"}), 400
 
-        farmer_id = data.get("farmer_id")
+        mobile_number = data.get("mobile_number")
         recommended_crop = data.get("recommended_crop")
 
-        if not (farmer_id and recommended_crop):
+        if not (mobile_number and recommended_crop):
             return jsonify({"error": "Missing required fields"}), 400
 
+        # Fetch the username from users collection
+        user = mongo.db.users.find_one({"mobile_number": mobile_number.strip()}, {"username": 1, "_id": 0})
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        username = user["username"]
+
         log_id = mongo.db.farmer_logs.insert_one({
-            "farmer_id": farmer_id.strip(),
+            "mobile_number": mobile_number.strip(),
+            "username": username,  # Save username along with logs
             "recommended_crop": recommended_crop.strip(),
             "timestamp": datetime.utcnow()
         }).inserted_id
@@ -103,11 +110,11 @@ def save_farmer_logs():
     except Exception as e:
         return jsonify({"error": f"Failed to save farmer log: {str(e)}"}), 500
 
-# Get Farmer Logs by User ID
-@app.route("/farmer_logs/<string:farmer_id>", methods=["GET"])
-def get_farmer_logs(farmer_id):
+# Get Farmer Logs by Mobile Number (Include `username`)
+@app.route("/farmer_logs/<string:mobile_number>", methods=["GET"])
+def get_farmer_logs(mobile_number):
     try:
-        logs = list(mongo.db.farmer_logs.find({"farmer_id": farmer_id.strip()}))
+        logs = list(mongo.db.farmer_logs.find({"mobile_number": mobile_number.strip()}))
         if not logs:
             return jsonify({"error": "No logs found"}), 404
 
