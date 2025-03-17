@@ -12,10 +12,9 @@ app.config["MONGO_URI"] = "mongodb+srv://Sanjay:Welcome%40123@cluster0.7ef1h.mon
 
 mongo = PyMongo(app)
 
-# Enable CORS for all origins (Modify if needed)
+# Enable CORS
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-# CORS Headers for Preflight Requests (Fixes OPTIONS Issues)
 @app.after_request
 def add_cors_headers(response):
     response.headers["Access-Control-Allow-Origin"] = "*"
@@ -23,7 +22,7 @@ def add_cors_headers(response):
     response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
     return response
 
-# Health Check Route
+# Health Check
 @app.route("/", methods=["GET"])
 def health_check():
     return jsonify({"status": "API is running"}), 200
@@ -43,7 +42,6 @@ def register():
         if not (username and mobile_number and password):
             return jsonify({"error": "Missing required fields"}), 400
 
-        # Check if user already exists
         if mongo.db.users.find_one({"mobile_number": mobile_number}):
             return jsonify({"error": "User already exists"}), 409
 
@@ -81,49 +79,7 @@ def login():
     except Exception as e:
         return jsonify({"error": f"Login failed: {str(e)}"}), 500
 
-# Get Crop Recommendations by Month
-@app.route("/crop_recommendations/<string:month>", methods=["GET"])
-def get_crop_recommendations(month):
-    try:
-        month = month.capitalize()
-        crops = mongo.db.crop_recommendations.find_one({"month": month})
-        
-        if not crops:
-            return jsonify({"error": f"No recommendations found for {month}"}), 404
-
-        return jsonify({"month": crops["month"], "recommended_crops": crops["recommended_crops"]}), 200
-    except Exception as e:
-        return jsonify({"error": f"Failed to fetch crop recommendations: {str(e)}"}), 500
-
-# Get User Information by Mobile Number
-@app.route("/user/<string:mobile_number>", methods=["GET"])
-def get_user_info(mobile_number):
-    try:
-        user = mongo.db.users.find_one({"mobile_number": mobile_number.strip()}, {"_id": 0, "password": 0})
-        
-        if not user:
-            return jsonify({"error": "User not found"}), 404
-
-        return jsonify(user), 200
-    except Exception as e:
-        return jsonify({"error": f"Failed to fetch user information: {str(e)}"}), 500
-
-
-# Get Pesticide Recommendations by Disease
-@app.route("/pesticide_recommendations/<string:disease>", methods=["GET"])
-def get_pesticide_recommendations(disease):
-    try:
-        disease = disease.capitalize()
-        pesticides = mongo.db.pesticide_recommendations.find_one({"disease": disease})
-        
-        if not pesticides:
-            return jsonify({"error": f"No recommendations found for {disease}"}), 404
-
-        return jsonify({"disease": pesticides["disease"], "recommended_pesticides": pesticides["recommended_pesticides"]}), 200
-    except Exception as e:
-        return jsonify({"error": f"Failed to fetch pesticide recommendations: {str(e)}"}), 500
-
-# Save Farmer Logs
+# Save Crop Recommendations in Farmer Logs
 @app.route("/farmer_logs", methods=["POST"])
 def save_farmer_logs():
     try:
@@ -132,16 +88,14 @@ def save_farmer_logs():
             return jsonify({"error": "No data provided"}), 400
 
         farmer_id = data.get("farmer_id")
-        recommended_crops = data.get("recommended_crops")
-        pesticide_recommendations = data.get("pesticide_recommendations")
+        recommended_crop = data.get("recommended_crop")
 
-        if not (farmer_id and recommended_crops and pesticide_recommendations):
+        if not (farmer_id and recommended_crop):
             return jsonify({"error": "Missing required fields"}), 400
 
         log_id = mongo.db.farmer_logs.insert_one({
             "farmer_id": farmer_id.strip(),
-            "recommended_crops": recommended_crops,
-            "pesticide_recommendations": pesticide_recommendations,
+            "recommended_crop": recommended_crop.strip(),
             "timestamp": datetime.utcnow()
         }).inserted_id
 
@@ -157,7 +111,6 @@ def get_farmer_logs(farmer_id):
         if not logs:
             return jsonify({"error": "No logs found"}), 404
 
-        # Convert ObjectId to string
         for log in logs:
             log["_id"] = str(log["_id"])
 
