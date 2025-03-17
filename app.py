@@ -118,6 +118,19 @@ def get_farmer_logs(farmer_id):
     except Exception as e:
         return jsonify({"error": f"Failed to fetch farmer logs: {str(e)}"}), 500
 
+# Get User Information by Mobile Number
+@app.route("/user/<string:mobile_number>", methods=["GET"])
+def get_user_info(mobile_number):
+    try:
+        user = mongo.db.users.find_one({"mobile_number": mobile_number.strip()}, {"_id": 0, "password": 0})
+        
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        return jsonify(user), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to fetch user information: {str(e)}"}), 500
+
 # Run Flask App
 if __name__ == "__main__":
     app.run(debug=True, port=3500)
